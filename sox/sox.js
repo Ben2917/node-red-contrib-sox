@@ -42,7 +42,7 @@ module.exports = function(RED) {
 
       var soxEventListener = function(data) {
         console.log("@@@@ data retrieved");
-        console.log(data)
+        node.status({fill:"green",shape:"dot",text:"got data"});
 
         var deviceName = data.getDevice().getName();
         var values = data.getTransducerValues();
@@ -94,6 +94,7 @@ module.exports = function(RED) {
       // node.client.setSoxEventListener(soxEventListener);
       node.client.connect(()=>{
         console.log('sox connected')
+        node.status({fill:"green",shape:"dot",text:"OK"});
 
         node.devices.forEach(function(deviceName){
           var device = node.client.bind(deviceName);

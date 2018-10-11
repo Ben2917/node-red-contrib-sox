@@ -30,83 +30,88 @@ module.exports = function(RED) {
           return;
       }
 
-      this.devices = n.device.replace(/\s/g,"").split(',');
-      this.transducer = n.transducer;
+      this.on("input", function(msg) {
 
-      this.bosh = this.login.bosh || DEFAULT_BOSH;
-      this.xmpp = this.login.xmpp || DEFAULT_XMPP;
-      this.jid = this.login.jid;
-      this.password = this.login.password;
-      
-      var node = this;
+        this.devices = n.device.replace(/\s/g,"").split(',');
+        this.transducer = n.transducer;
 
-      var soxEventListener = function(data) {
-        console.log("@@@@ data retrieved");
-        console.log(data)
+        this.bosh = this.login.bosh || DEFAULT_BOSH;
+        this.xmpp = this.login.xmpp || DEFAULT_XMPP;
+        this.jid = this.login.jid;
+        this.password = this.login.password;
+        
+        var node = this;
 
-        var deviceName = data.getDevice().getName();
-        var values = data.getTransducerValues();
+        var soxEventListener = function(data) {
+          console.log("@@@@ data retrieved");
+          console.log(data)
 
-        var deviceMatch = false
-        // console.log("-------- Sensor data received from " + soxEvent.device.name)
-        for (var i = 0; i < node.devices.length; i++){
-          if (node.devices[i] === deviceName){
-            deviceMatch = true
-            break
+          var deviceName = data.getDevice().getName();
+          var values = data.getTransducerValues();
+
+          var deviceMatch = false
+          // console.log("-------- Sensor data received from " + soxEvent.device.name)
+          for (var i = 0; i < node.devices.length; i++){
+            if (node.devices[i] === deviceName){
+              deviceMatch = true
+              break
+            }
+          }
+          if (!deviceMatch){
+            return;
+          }
+          console.log('device matched')
+
+          if (values.length === 0){
+            return;
+          }
+          console.log('values presented')
+
+          if (!node.transducer){
+            node.send({payload: values, topic: deviceName});
+            return;
+          }
+          console.log('node transducer presented')
+
+          for (var i=0; i < values.length; i++) {
+            console.log(values[i].getTransducerId())
+            console.log(node.transducer)
+            if (values[i].getTransducerId() === node.transducer){
+              console.log(values[i].getRawValue())
+              node.send({payload: ":"+values[i].getRawValue(), topic: deviceName});
+              break;
+            }
           }
         }
-        if (!deviceMatch){
-          return;
-        }
-        console.log('device matched')
-
-        if (values.length === 0){
-          return;
-        }
-        console.log('values presented')
-
-        if (!node.transducer){
-          node.send({payload: values, topic: deviceName});
-          return;
-        }
-        console.log('node transducer presented')
-
-        for (var i=0; i < values.length; i++) {
-          console.log(values[i].getTransducerId())
-          console.log(node.transducer)
-          if (values[i].getTransducerId() === node.transducer){
-            console.log(values[i].getRawValue())
-            node.send({payload: ":"+values[i].getRawValue(), topic: deviceName});
-            break;
-          }
-        }
-      }
-
-
-      // *** user login
-      // var conn = new SoxConnection(soxConfig.boshService, soxConfig.jid, soxConfig.password);
-
-      // *** anonymous login (jid=null does not work!)
-      // TODO: authenticated not work now, ignoring jid and password
-      this.client = new SoxConnection(this.bosh, this.xmpp);
-      // this.client.unsubscribeAll();
-
-      // node.client.setSoxEventListener(soxEventListener);
-      node.client.connect(()=>{
-        console.log('sox connected')
-
-        node.devices.forEach(function(deviceName){
-          var device = node.client.bind(deviceName);
-          node.client.addListener(device, soxEventListener)
-          node.client.subscribe(device)
-        })
-      });
       
-      node.on('close', function(){
-          // node.client.setSoxEventListener(null);
-          node.client.unsubscribeAll();
-          node.client.disconnect();
-          node.status({});
+
+
+        // *** user login
+        // var conn = new SoxConnection(soxConfig.boshService, soxConfig.jid, soxConfig.password);
+
+        // *** anonymous login (jid=null does not work!)
+        // TODO: authenticated not work now, ignoring jid and password
+        this.client = new SoxConnection(this.bosh, this.xmpp);
+        // this.client.unsubscribeAll();
+
+        // node.client.setSoxEventListener(soxEventListener);
+        node.client.connect(()=>{
+          console.log('sox connected')
+
+          node.devices.forEach(function(deviceName){
+            var device = node.client.bind(deviceName);
+            node.client.addListener(device, soxEventListener)
+            node.client.subscribe(device)
+          })
+        });
+        
+        node.on('close', function(){
+            // node.client.setSoxEventListener(null);
+            node.client.unsubscribeAll();
+            node.client.disconnect();
+            node.status({});
+        });
+
       });
 
     }
